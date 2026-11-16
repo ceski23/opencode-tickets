@@ -7,6 +7,15 @@ on:
                 description: Validate without publishing
                 type: boolean
                 default: false
+            increment:
+                description: Force the version increment
+                type: choice
+                options:
+                    - auto
+                    - patch
+                    - minor
+                    - major
+                default: auto
 
 concurrency:
     group: release
@@ -55,6 +64,6 @@ jobs:
               run: bun run check:config
 
             - name: Release new version
-              run: npx release-it --ci ${{ inputs.dry_run && '--dry-run' || '' }}
+              run: npx release-it --ci ${{ inputs.increment != 'auto' && format('--increment {0}', inputs.increment) || '' }} ${{ inputs.dry_run && '--dry-run' || '' }}
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
