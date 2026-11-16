@@ -1,0 +1,60 @@
+name: Release
+
+on:
+    workflow_dispatch:
+        inputs:
+            dry_run:
+                description: Validate without publishing
+                type: boolean
+                default: false
+
+concurrency:
+    group: release
+    cancel-in-progress: false
+
+jobs:
+    release:
+        if: github.ref == 'refs/heads/master'
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+            id-token: write
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v7.0.1
+              with:
+                  fetch-depth: 0
+
+            - name: Setup Node
+              uses: actions/setup-node@v7.1.0
+              with:
+                  node-version: 24
+                  registry-url: https://registry.npmjs.org
+
+            - name: Setup Bun
+              uses: oven-sh/setup-bun@v2.2.0
+              with:
+                  bun-version-file: package.json
+
+            - name: Install dependencies
+              run: bun install --frozen-lockfile
+
+            - name: Type checks
+              run: bun run typecheck
+
+            - name: Linter
+              run: bun run lint
+
+            - name: Formatting
+              run: bun run format:check
+
+            - name: Tests
+              run: bun run test
+
+            - name: Check package configuration
+              run: bun run check:config
+
+            - name: Release new version
+              run: npx release-it --ci ${{ inputs.dry_run && '--dry-run' || '' }}
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

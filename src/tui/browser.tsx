@@ -1,0 +1,204 @@
+import type { Context } from '@opencode/plugin/tui/context'
+// Keep this module .tsx: OpenCode's plugin runtime resolves "solid-js" for
+// plain .ts modules to the server build, which is a different non-reactive
+// runtime than the one used by the JSX renderer. Everything reactive must be
+// created in a module compiled by the JSX pipeline.
+import { createMemo, createSignal, onCleanup, onMount } from 'solid-js'
+import type { GetTicketResult } from '../rpc'
+import {
+	buildTreeRows,
+	collapseTarget,
+	expandTarget,
+	filterTickets,
+	formatRpcError,
+	moveSelection,
+	parentIdsWithChildren,
+	reconcileSelection,
+	revealTicket,
+	ticketCounts,
+	type TicketFilter,
+	type TicketListItem,
+} from '../tui-model'
+import { ticketsRpc } from './rpc'
+
+/**
+ * Owns ticket loading, selection, filtering, and tree navigation for the
+ * dialog. Keeping this out of the JSX makes the request and selection rules
+ * testable and leaves the component as a composition root.
+ */
+export function useTicketBrowser(context: Context) {
+	const rpc = ticketsRpc(context)
+	const [tickets, setTickets] = createSignal<TicketListItem[]>([])
+	const [filter, setFilter] = createSignal<TicketFilter>('all')
+	const [expanded, setExpanded] = createSignal<ReadonlySet<string>>(new Set())
+	const [selected, setSelected] = createSignal<string | null>(null)
+	const [loading, setLoading] = createSignal(true)
+	const [error, setError] = createSignal<string | null>(null)
+	const [detail, setDetail] = createSignal<GetTicketResult | null>(null)
+	const [detailError, setDetailError] = createSignal<string | null>(null)
+	const [detailLoading, setDetailLoading] = createSignal(false)
+
+	let hydrated = false
+	let detailRequest = 0
+	let listRequest = 0
+	let disposed = false
+
+	onCleanup(() => {
+		disposed = true
+	})
+
+	const visibleTickets = createMemo(() => filterTickets(tickets(), filter()))
+	const rows = createMemo(() => buildTreeRows(visibleTickets(), expanded()))
+	const counts = createMemo(() => ticketCounts(tickets()))
+
+	const clearDetail = (): void => {
+		detailRequest += 1
+		setDetail(null)
+		setDetailError(null)
+		setDetailLoading(false)
+	}
+
+	const loadDetail = async (id: string): Promise<void> => {
+		const request = ++detailRequest
+		setDetailLoading(true)
+		setDetailError(null)
+		try {
+			const result = await rpc.get(id)
+			if (disposed || request !== detailRequest) return
+			setDetail(result)
+		} catch (cause) {
+			if (disposed || request !== detailRequest) return
+			setDetail(null)
+			setDetailError(formatRpcError(cause))
+		} finally {
+			if (!disposed && request === detailRequest) setDetailLoading(false)
+		}
+	}
+
+	const select = (id: string): void => {
+		const reveal = revealTicket(tickets(), id, filter(), expanded())
+		setFilter(reveal.filter)
+		setExpanded(reveal.expanded)
+		if (selected() === id && detail() !== null) return
+		setSelected(id)
+		setDetail(null)
+		setDetailError(null)
+		void loadDetail(id)
+	}
+
+	const refreshDetail = (id: string): void => {
+		setDetail(null)
+		setDetailError(null)
+		void loadDetail(id)
+	}
+
+	const loadList = async (): Promise<boolean> => {
+		const request = ++listRequest
+		setLoading(true)
+		setError(null)
+		try {
+			const result = await rpc.list()
+			if (disposed || request !== listRequest) return false
+
+			const nextTickets = result.tickets
+			const parents = new Set(parentIdsWithChildren(nextTickets))
+			const nextExpanded = new Set([...expanded()].filter(id => parents.has(id)))
+			if (!hydrated) {
+				for (const id of parents) nextExpanded.add(id)
+				hydrated = true
+			}
+
+			setTickets(nextTickets)
+			setExpanded(nextExpanded)
+
+			const nextSelected = reconcileSelection(
+				buildTreeRows(filterTickets(nextTickets, filter()), nextExpanded),
+				selected(),
+			)
+			setSelected(nextSelected)
+			if (nextSelected === null) clearDetail()
+			else refreshDetail(nextSelected)
+			return true
+		} catch (cause) {
+			if (disposed || request !== listRequest) return false
+			setTickets([])
+			setError(formatRpcError(cause))
+			setSelected(null)
+			clearDetail()
+			return false
+		} finally {
+			if (!disposed && request === listRequest) setLoading(false)
+		}
+	}
+
+	const changeFilter = (next: TicketFilter): void => {
+		if (filter() === next) return
+		setFilter(next)
+		const nextRows = buildTreeRows(filterTickets(tickets(), next), expanded())
+		const nextSelected = reconcileSelection(nextRows, selected())
+		if (nextSelected === selected() && detail() !== null) return
+		setSelected(nextSelected)
+		if (nextSelected === null) clearDetail()
+		else refreshDetail(nextSelected)
+	}
+
+	const toggle = (id: string): void => {
+		const next = new Set(expanded())
+		if (next.has(id)) next.delete(id)
+		else next.add(id)
+		setExpanded(next)
+		if (selected() !== null && !buildTreeRows(visibleTickets(), next).some(row => row.ticket.id === selected())) {
+			select(id)
+		}
+	}
+
+	const move = (delta: number): void => {
+		const id = moveSelection(rows(), selected(), delta)
+		if (id !== null) select(id)
+	}
+
+	const expand = (): void => {
+		const target = expandTarget(rows(), selected())
+		if (target === null) return
+		if (target.kind === 'toggle') toggle(target.id)
+		else select(target.id)
+	}
+
+	const collapse = (): void => {
+		const target = collapseTarget(rows(), selected())
+		if (target === null) return
+		if (target.kind === 'toggle') toggle(target.id)
+		else select(target.id)
+	}
+
+	const refresh = (): void => {
+		void loadList()
+	}
+
+	// Load after the dialog's reactive owner is mounted. Starting this during
+	// component setup can resolve before the tree subscribes to the signals and
+	// leaves the dialog showing its first (empty) snapshot forever.
+	onMount(() => {
+		void loadList()
+	})
+
+	return {
+		tickets,
+		filter,
+		selected,
+		loading,
+		error,
+		detail,
+		detailError,
+		detailLoading,
+		rows,
+		counts,
+		select,
+		changeFilter,
+		toggle,
+		move,
+		expand,
+		collapse,
+		refresh,
+	}
+}
