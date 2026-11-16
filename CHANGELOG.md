@@ -1,5 +1,7 @@
 # Changelog
 
+## [1.0.1](https://github.com/ceski23/opencode-tickets/compare/v1.0.0...v1.0.1) (2026-11-16)
+
 ## 1.0.0 (2026-11-16)
 
 ### Features
