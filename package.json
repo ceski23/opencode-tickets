@@ -14,15 +14,20 @@
 	},
 	"exports": {
 		".": "./src/index.ts",
-		"./tui": "./src/tui.tsx",
+		"./tui": {
+			"types": "./dist/tui.d.ts",
+			"default": "./dist/tui.js"
+		},
 		"./rpc": "./src/rpc.ts"
 	},
 	"files": [
 		"src",
+		"dist",
 		"docs",
 		"README.md"
 	],
 	"scripts": {
+		"build": "tsdown",
 		"typecheck": "tsc --noEmit",
 		"lint": "oxlint --deny-warnings",
 		"lint:fix": "oxlint --fix",
@@ -31,9 +36,10 @@
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"check:config": "publint",
-		"check": "bun run typecheck && bun run lint && bun run format:check && bun run test && bun run check:config",
+		"check": "bun run build && bun run typecheck && bun run lint && bun run format:check && bun run test && bun run check:config",
 		"release": "bun run check && npx release-it",
 		"release:dry": "bun run check && npx release-it --dry-run",
+		"prepack": "bun run build",
 		"prepublishOnly": "bun run check"
 	},
 	"dependencies": {
@@ -45,15 +51,10 @@
 	},
 	"peerDependencies": {
 		"@opencode/plugin": ">=2.2.0",
-		"@opencode/theme": ">=2.2.0",
 		"@opentui/core": ">=0.8.1",
 		"@opentui/solid": ">=0.8.1",
+		"effect": "^4.0.0",
 		"solid-js": ">=1.9.0"
-	},
-	"peerDependenciesMeta": {
-		"@opencode/theme": {
-			"optional": true
-		}
 	},
 	"devDependencies": {
 		"@opencode/plugin": "2.3.0",
@@ -66,7 +67,9 @@
 		"oxlint": "1.94.0",
 		"publint": "0.3.25",
 		"release-it": "21.1.2",
+		"rolldown-plugin-solid": "0.2.1",
 		"solid-js": "1.9.19",
+		"tsdown": "0.23.7",
 		"typescript": "7.0.2",
 		"vitest": "5.1.0"
 	}
