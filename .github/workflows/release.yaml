@@ -63,6 +63,11 @@ jobs:
             - name: Check package configuration
               run: bun run check:config
 
+            - name: Configure Git
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
             - name: Release new version
               run: npx release-it --ci ${{ inputs.increment != 'auto' && format('--increment {0}', inputs.increment) || '' }} ${{ inputs.dry_run && '--dry-run' || '' }}
               env:
