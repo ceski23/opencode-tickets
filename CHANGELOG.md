@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.2](https://github.com/ceski23/opencode-tickets/compare/v1.0.1...v1.0.2) (2026-11-16)
+
+### Bug Fixes
+
+* **tui:** ship a compiled TUI entry ([da2509b](https://github.com/ceski23/opencode-tickets/commit/da2509b053e08aa82015d99aa92a9d8c471b3efb))
+
 ## [1.0.1](https://github.com/ceski23/opencode-tickets/compare/v1.0.0...v1.0.1) (2026-11-16)
 
 ## 1.0.0 (2026-11-16)
