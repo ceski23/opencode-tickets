@@ -44,7 +44,7 @@ const errorSchema = {
 } as const
 
 export const TicketsRpc = Rpc.define({
-	id: 'opencode-local-tickets',
+	id: 'ceski23.opencode-tickets.rpc',
 	methods: {
 		listTickets: {
 			input: { type: 'object', additionalProperties: false, properties: {} },

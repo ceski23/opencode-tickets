@@ -1,4 +1,4 @@
-# OpenCode Local Tickets
+# OpenCode Tickets
 
 Local-first ticket tracking for OpenCode V2. Tickets are Markdown files in your project.
 Agents work them through five `ticket.*` tools, and `/tickets` opens a read-only TUI

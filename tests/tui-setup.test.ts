@@ -3,6 +3,7 @@ import plugin from '../src/tui'
 
 describe('tui plugin setup', () => {
 	it('registers the tickets command and sidebar summary, and opens a native dialog', async () => {
+		expect(plugin.id).toBe('ceski23.opencode-tickets.tui')
 		const calls = {
 			set: [] as unknown[],
 			show: [] as Array<() => void>,

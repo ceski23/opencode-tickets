@@ -10,7 +10,7 @@ import { DIALOG_HEIGHT_RESERVE, DIALOG_MAX_HEIGHT, DIALOG_MIN_HEIGHT } from './t
 import { TicketsSidebar } from './tui/sidebar'
 
 export default Plugin.define({
-	id: 'opencode-local-tickets',
+	id: 'ceski23.opencode-tickets.tui',
 	setup(context) {
 		let open = false
 

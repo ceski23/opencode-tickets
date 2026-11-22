@@ -286,7 +286,7 @@ export async function setupPlugin(ctx: Context): Promise<() => Promise<void>> {
 					if (reminder !== null) event.system.push({ type: 'text', text: reminder })
 				} catch (error) {
 					console.error(
-						`[opencode-local-tickets] Could not read tickets for the context reminder: ${errorMessage(error)}`,
+						`[@ceski23/opencode-tickets] Could not read tickets for the context reminder: ${errorMessage(error)}`,
 					)
 				}
 			}),
@@ -352,6 +352,6 @@ export async function setupPlugin(ctx: Context): Promise<() => Promise<void>> {
 }
 
 export default Plugin.define({
-	id: 'opencode-local-tickets',
+	id: 'ceski23.opencode-tickets.server',
 	setup: setupPlugin,
 })
