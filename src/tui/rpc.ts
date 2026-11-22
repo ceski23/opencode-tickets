@@ -2,7 +2,7 @@ import type { Context } from '@opencode/plugin/tui/context'
 import { TicketsRpc, type GetTicketResult, type ListTicketsResult, type TicketsRpcClient } from '../rpc'
 
 export type TicketsRpcConnection = {
-	list: () => Promise<ListTicketsResult>
+	list: (includeBodies?: boolean) => Promise<ListTicketsResult>
 	get: (id: string) => Promise<GetTicketResult>
 }
 
@@ -40,7 +40,8 @@ export function ticketsRpc(context: Context): TicketsRpcConnection {
 	const client = () => context.client.rpc(TicketsRpc) as unknown as TicketsRpcClient
 
 	return {
-		list: () => withTimeout(client().listTickets({}, options())),
+		list: includeBodies =>
+			withTimeout(client().listTickets(includeBodies ? { includeBodies: true } : {}, options())),
 		get: id => withTimeout(client().getTicket({ id }, options())),
 	}
 }

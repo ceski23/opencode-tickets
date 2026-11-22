@@ -9,6 +9,7 @@ import {
 	statusMarker,
 	statusLabel,
 	ticketCounts,
+	ticketRows,
 	treePrefix,
 	type TicketListItem,
 } from '../src/tui-model'
@@ -68,6 +69,40 @@ describe('buildTreeRows', () => {
 })
 
 describe('tree helpers', () => {
+	it('fuzzy searches IDs, titles and labels while composing with status', () => {
+		const list = [...tickets, item({ id: id(7), title: 'Coffee service', labels: ['espresso'] })]
+		expect(filterTickets(list, 'all', 'cofee').map(ticket => ticket.id)).toContain(id(7))
+		expect(filterTickets(list, 'all', 'tk-7').map(ticket => ticket.id)).toContain(id(7))
+		expect(filterTickets(list, 'all', 'espresso').map(ticket => ticket.id)).toContain(id(7))
+		expect(filterTickets(list, 'closed', 'coffee')).toEqual([])
+		expect(filterTickets(list, 'all', '  ')).toEqual(list)
+		expect(filterTickets(list, 'all', 'zzzzzzzzzzzz')).toEqual([])
+	})
+
+	it('reveals matching descendants without changing collapsed state', () => {
+		const expanded = new Set<string>()
+		expect(ticketRows(tickets, 'all', 'child', expanded).map(row => row.ticket.id)).toContain(id(4))
+		expect([...expanded]).toEqual([])
+		expect(ticketRows(tickets, 'all', '', expanded).map(row => row.ticket.id)).toEqual([id(1), id(5), id(6)])
+	})
+
+	it('searches full bodies and respects status and collapsed trees', () => {
+		const list = [
+			item({ id: id(1), title: 'Parent' }),
+			item({
+				id: id(2),
+				title: 'Child',
+				parent: id(1),
+				status: 'in_progress',
+				body: `${'x '.repeat(100)}Moonlight espresso`,
+			}),
+		]
+		const expanded = new Set<string>()
+		expect(ticketRows(list, 'all', 'moonligt espresso', expanded).map(row => row.ticket.id)).toEqual([id(2)])
+		expect(ticketRows(list, 'open', 'moonlight espresso', expanded)).toEqual([])
+		expect(ticketRows(list, 'all', '', expanded).map(row => row.ticket.id)).toEqual([id(1)])
+	})
+
 	it('renders tree prefixes for branches and last children', () => {
 		const rows = buildTreeRows(tickets, new Set([id(1), id(2)]))
 		expect(treePrefix(rows[0]!)).toBe('')
@@ -123,9 +158,9 @@ describe('formatRpcError', () => {
 	it('adds a retry hint when the RPC is still unavailable', () => {
 		const message = formatRpcError({
 			type: 'rpc.unavailable',
-			message: 'RPC is unavailable: opencode-local-tickets',
+			message: 'RPC is unavailable: ceski23.opencode-tickets.rpc',
 		})
-		expect(message).toContain('RPC is unavailable: opencode-local-tickets')
+		expect(message).toContain('RPC is unavailable: ceski23.opencode-tickets.rpc')
 		expect(message).toContain('press r to retry')
 	})
 

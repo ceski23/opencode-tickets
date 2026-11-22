@@ -294,7 +294,7 @@ export async function setupPlugin(ctx: Context): Promise<() => Promise<void>> {
 
 		registrations.push(
 			await ctx.rpc.register(TicketsRpc, {
-				async listTickets(_input, context) {
+				async listTickets(input, context) {
 					try {
 						const tickets = await service.list()
 						return {
@@ -307,6 +307,9 @@ export async function setupPlugin(ctx: Context): Promise<() => Promise<void>> {
 								blocked_by: ticket.blocked_by,
 								ready: ticket.ready,
 								blocked: ticket.blocked,
+								...((input as { includeBodies?: boolean } | undefined)?.includeBodies
+									? { body: ticket.body }
+									: {}),
 							})),
 						}
 					} catch (error) {

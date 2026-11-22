@@ -79,6 +79,9 @@ describe('server plugin registration', () => {
 			const rpcContext = { error: (type: string, message: string, data: unknown) => ({ type, message, data }) }
 			const listed = await handlers!.listTickets!(undefined, rpcContext)
 			expect(listed.tickets.map((entry: { id: string }) => entry.id)).toContain(created.id)
+			expect(listed.tickets.find((entry: { id: string }) => entry.id === created.id)).not.toHaveProperty('body')
+			const withBodies = await handlers!.listTickets!({ includeBodies: true }, rpcContext)
+			expect(withBodies.tickets.find((entry: { id: string }) => entry.id === created.id).body).toBe('Body')
 
 			const detail = await handlers!.getTicket!({ id: created.id }, rpcContext)
 			expect(detail.ticket.body).toBe('Body')

@@ -15,6 +15,10 @@ export function TicketsHeader(props: {
 	counts: Counts
 	filter: TicketFilter
 	onFilter: (filter: TicketFilter) => void
+	query: string
+	searching: boolean
+	onSearch: (query: string) => void
+	onSearchFocus: () => void
 }) {
 	return (
 		<box
@@ -26,13 +30,27 @@ export function TicketsHeader(props: {
 			paddingTop={1}
 			paddingBottom={1}
 		>
-			<text
-				fg={props.theme.text.base}
-				selectable={false}
+			<box
+				flexDirection="row"
+				flexGrow={1}
+				flexShrink={1}
+				minWidth={0}
+				paddingRight={2}
 			>
-				Tickets
-			</text>
-			<box flexGrow={1} />
+				<text fg={props.theme.text.muted}>Search: </text>
+				<input
+					flexGrow={1}
+					flexShrink={1}
+					minWidth={0}
+					placeholder="ID, title, label, or body (/)"
+					value={props.query}
+					focused={props.searching}
+					onInput={props.onSearch}
+					onMouseDown={props.onSearchFocus}
+					backgroundColor={props.theme.background.raised.high}
+					focusedBackgroundColor={props.theme.background.raised.high}
+				/>
+			</box>
 			<HeaderFilter
 				theme={props.theme}
 				label="all"
@@ -156,7 +174,7 @@ export function TicketsTree(props: {
 					paddingTop={2}
 					paddingBottom={2}
 				>
-					<text fg={props.theme.text.muted}>No tickets match this filter.</text>
+					<text fg={props.theme.text.muted}>No tickets match this search and filter.</text>
 				</box>
 			</Show>
 
@@ -635,6 +653,11 @@ export function TicketsFooter(props: { theme: TuiTheme; surface: TuiTheme }) {
 				flexDirection="row"
 				flexShrink={0}
 			>
+				<KeyHint
+					theme={props.surface}
+					keys="/"
+					label="search"
+				/>
 				<KeyHint
 					theme={props.surface}
 					keys="↑↓"

@@ -3,7 +3,7 @@ import { Plugin } from '@opencode/plugin/tui'
 import type { Context } from '@opencode/plugin/tui/context'
 import { generateSyntax } from '@opencode/theme/tui'
 import openFile from 'open'
-import { createMemo, onCleanup, Show } from 'solid-js'
+import { createMemo, createSignal, onCleanup, Show } from 'solid-js'
 import { useTicketBrowser } from './tui/browser.tsx'
 import { TicketsDetail, TicketsFooter, TicketsHeader, TicketsTree } from './tui/components'
 import { DIALOG_HEIGHT_RESERVE, DIALOG_MAX_HEIGHT, DIALOG_MIN_HEIGHT } from './tui/constants'
@@ -65,6 +65,7 @@ export function TicketsDialog(props: { context: Context }) {
 	const theme = context.theme.surface('dialog')
 	const footerTheme = context.theme.surface('dialog.footer')
 	const browser = useTicketBrowser(context)
+	const [searching, setSearching] = createSignal(false)
 
 	const syntax = generateSyntax(theme, context.renderer.nativeScene)
 	onCleanup(() => {
@@ -86,28 +87,28 @@ export function TicketsDialog(props: { context: Context }) {
 				id: 'tickets.move-up',
 				title: 'Tickets: move up',
 				bind: 'up',
-				enabled: () => !browser.loading() && browser.error() === null,
+				enabled: () => !searching() && !browser.loading() && browser.error() === null,
 				run: () => browser.move(-1),
 			},
 			{
 				id: 'tickets.move-down',
 				title: 'Tickets: move down',
 				bind: 'down',
-				enabled: () => !browser.loading() && browser.error() === null,
+				enabled: () => !searching() && !browser.loading() && browser.error() === null,
 				run: () => browser.move(1),
 			},
 			{
 				id: 'tickets.expand',
 				title: 'Tickets: expand or enter child',
 				bind: 'right',
-				enabled: () => !browser.loading() && browser.error() === null,
+				enabled: () => !searching() && !browser.loading() && browser.error() === null,
 				run: browser.expand,
 			},
 			{
 				id: 'tickets.collapse',
 				title: 'Tickets: collapse or go to parent',
 				bind: 'left',
-				enabled: () => !browser.loading() && browser.error() === null,
+				enabled: () => !searching() && !browser.loading() && browser.error() === null,
 				run: browser.collapse,
 			},
 			{
@@ -115,14 +116,31 @@ export function TicketsDialog(props: { context: Context }) {
 				title: 'Tickets: close',
 				description: 'Close the ticket browser and return to the previous screen.',
 				bind: 'escape',
-				run: () => context.ui.dialog.clear(),
+				run: () => {
+					if (searching()) setSearching(false)
+					else context.ui.dialog.clear()
+				},
+			},
+			{
+				id: 'tickets.search',
+				title: 'Tickets: search',
+				bind: '/',
+				enabled: () => !searching(),
+				run: () => setSearching(true),
+			},
+			{
+				id: 'tickets.search-done',
+				title: 'Tickets: finish search',
+				bind: 'return',
+				enabled: () => searching(),
+				run: () => setSearching(false),
 			},
 			{
 				id: 'tickets.open-file',
 				title: 'Tickets: open file',
 				description: "Open the selected ticket's Markdown file in the default editor.",
 				bind: 'o',
-				enabled: () => browser.selected() !== null && browser.error() === null,
+				enabled: () => !searching() && browser.selected() !== null && browser.error() === null,
 				run: () => {
 					const id = browser.selected()
 					if (id === null) return
@@ -135,6 +153,7 @@ export function TicketsDialog(props: { context: Context }) {
 				id: 'tickets.refresh',
 				title: 'Tickets: refresh',
 				bind: 'r',
+				enabled: () => !searching(),
 				run: browser.refresh,
 			},
 		],
@@ -156,6 +175,10 @@ export function TicketsDialog(props: { context: Context }) {
 				counts={browser.counts()}
 				filter={browser.filter()}
 				onFilter={browser.changeFilter}
+				query={browser.query()}
+				searching={searching()}
+				onSearch={browser.changeQuery}
+				onSearchFocus={() => setSearching(true)}
 			/>
 
 			<Show when={browser.error() !== null}>

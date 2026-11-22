@@ -47,11 +47,23 @@ export const TicketsRpc = Rpc.define({
 	id: 'ceski23.opencode-tickets.rpc',
 	methods: {
 		listTickets: {
-			input: { type: 'object', additionalProperties: false, properties: {} },
+			input: {
+				type: 'object',
+				additionalProperties: false,
+				properties: { includeBodies: { type: 'boolean' } },
+			},
 			output: {
 				type: 'object',
 				additionalProperties: false,
-				properties: { tickets: { type: 'array', items: summarySchema } },
+				properties: {
+					tickets: {
+						type: 'array',
+						items: {
+							...summarySchema,
+							properties: { ...summarySchema.properties, body: { type: 'string' } },
+						},
+					},
+				},
 				required: ['tickets'],
 			},
 			errors: { invalid_storage: errorSchema },
@@ -81,7 +93,7 @@ export const TicketsRpc = Rpc.define({
 	events: {},
 })
 
-export type ListTicketsResult = { tickets: TicketSummary[] }
+export type ListTicketsResult = { tickets: (TicketSummary & { body?: string })[] }
 
 export type GetTicketResult = TicketDetail
 
@@ -91,7 +103,7 @@ export type TicketRpcOptions = {
 }
 
 export type TicketsRpcClient = {
-	listTickets(input?: Record<string, never>, options?: TicketRpcOptions): Promise<ListTicketsResult>
+	listTickets(input?: { includeBodies?: boolean }, options?: TicketRpcOptions): Promise<ListTicketsResult>
 	getTicket(input: { id: string }, options?: TicketRpcOptions): Promise<GetTicketResult>
 }
 

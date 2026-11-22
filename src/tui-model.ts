@@ -1,8 +1,10 @@
+import Fuse from 'fuse.js'
 import { compareTicketIds, type TicketStatus } from './core/schema'
 
 export type TicketListItem = {
 	id: string
 	title: string
+	body?: string
 	status: TicketStatus
 	labels: string[]
 	parent: string | null
@@ -142,8 +144,27 @@ export function ticketCounts(tickets: readonly TicketListItem[]): {
 	}
 }
 
-export function filterTickets(tickets: readonly TicketListItem[], filter: TicketFilter): TicketListItem[] {
-	return filter === 'all' ? [...tickets] : tickets.filter(ticket => ticket.status === filter)
+export function filterTickets(tickets: readonly TicketListItem[], filter: TicketFilter, query = ''): TicketListItem[] {
+	const filtered = filter === 'all' ? [...tickets] : tickets.filter(ticket => ticket.status === filter)
+	const term = query.trim()
+	if (!term) return filtered
+	const matches = new Fuse(filtered, {
+		ignoreLocation: true,
+		threshold: 0.3,
+		keys: ['id', 'title', 'labels', 'body'],
+	}).search(term)
+	return matches.map(match => match.item)
+}
+
+/** During search, expand matching parent rows without changing the saved tree state. */
+export function ticketRows(
+	tickets: readonly TicketListItem[],
+	filter: TicketFilter,
+	query: string,
+	expanded: ReadonlySet<string>,
+): TreeRow[] {
+	const visible = filterTickets(tickets, filter, query)
+	return buildTreeRows(visible, query.trim() ? new Set(parentIdsWithChildren(visible)) : expanded)
 }
 
 export function revealTicket(

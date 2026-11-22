@@ -169,12 +169,15 @@ summary in the sidebar. It opens as a native dialog; `Esc` returns to the previo
 | `Left`        | Collapse, or move to the parent                       |
 | `o`           | Open the selected Markdown file in the default editor |
 | `r`           | Reload tickets from the server                        |
+| `/`           | Focus the fuzzy search input                          |
 | `Esc`         | Close the dialog                                      |
 
 The left pane is a parent tree. The right pane shows the selected ticket's metadata,
 relationships, readiness, and rendered Markdown body. Parent, child, blocker, and blocked
 links are clickable. Rows select on click, chevrons expand or collapse, the mouse wheel
 scrolls, and the header filters switch between `all`, `open`, `active`, and `closed`.
+Search matches ticket IDs, titles, labels, and full Markdown bodies; it combines with
+the selected status filter.
 
 | Marker    | Meaning                 |
 | --------- | ----------------------- |
@@ -198,8 +201,9 @@ read-only.
 
 The `@ceski23/opencode-tickets/rpc` export provides the read-only contract used by the
 TUI:
-`listTickets` for summaries and `getTicket` for one ticket's details. Other plugins can
-use it to read the same server-side state. These methods are not agent tools.
+`listTickets` for summaries (optionally including bodies with `includeBodies: true`) and
+`getTicket` for one ticket's details. Other plugins can use it to read the same
+server-side state. These methods are not agent tools.
 
 ## Development
 

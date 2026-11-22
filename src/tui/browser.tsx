@@ -6,16 +6,15 @@ import type { Context } from '@opencode/plugin/tui/context'
 import { createMemo, createSignal, onCleanup, onMount } from 'solid-js'
 import type { GetTicketResult } from '../rpc'
 import {
-	buildTreeRows,
 	collapseTarget,
 	expandTarget,
-	filterTickets,
 	formatRpcError,
 	moveSelection,
 	parentIdsWithChildren,
 	reconcileSelection,
 	revealTicket,
 	ticketCounts,
+	ticketRows,
 	type TicketFilter,
 	type TicketListItem,
 } from '../tui-model'
@@ -30,6 +29,7 @@ export function useTicketBrowser(context: Context) {
 	const rpc = ticketsRpc(context)
 	const [tickets, setTickets] = createSignal<TicketListItem[]>([])
 	const [filter, setFilter] = createSignal<TicketFilter>('all')
+	const [query, setQuery] = createSignal('')
 	const [expanded, setExpanded] = createSignal<ReadonlySet<string>>(new Set())
 	const [selected, setSelected] = createSignal<string | null>(null)
 	const [loading, setLoading] = createSignal(true)
@@ -47,8 +47,7 @@ export function useTicketBrowser(context: Context) {
 		disposed = true
 	})
 
-	const visibleTickets = createMemo(() => filterTickets(tickets(), filter()))
-	const rows = createMemo(() => buildTreeRows(visibleTickets(), expanded()))
+	const rows = createMemo(() => ticketRows(tickets(), filter(), query(), expanded()))
 	const counts = createMemo(() => ticketCounts(tickets()))
 
 	const clearDetail = (): void => {
@@ -76,9 +75,12 @@ export function useTicketBrowser(context: Context) {
 	}
 
 	const select = (id: string): void => {
-		const reveal = revealTicket(tickets(), id, filter(), expanded())
-		setFilter(reveal.filter)
-		setExpanded(reveal.expanded)
+		if (!query().trim() || !rows().some(row => row.ticket.id === id)) {
+			setQuery('')
+			const reveal = revealTicket(tickets(), id, filter(), expanded())
+			setFilter(reveal.filter)
+			setExpanded(reveal.expanded)
+		}
 		if (selected() === id && detail() !== null) return
 		setSelected(id)
 		setDetail(null)
@@ -97,7 +99,7 @@ export function useTicketBrowser(context: Context) {
 		setLoading(true)
 		setError(null)
 		try {
-			const result = await rpc.list()
+			const result = await rpc.list(true)
 			if (disposed || request !== listRequest) return false
 
 			const nextTickets = result.tickets
@@ -112,7 +114,7 @@ export function useTicketBrowser(context: Context) {
 			setExpanded(nextExpanded)
 
 			const nextSelected = reconcileSelection(
-				buildTreeRows(filterTickets(nextTickets, filter()), nextExpanded),
+				ticketRows(nextTickets, filter(), query(), nextExpanded),
 				selected(),
 			)
 			setSelected(nextSelected)
@@ -134,7 +136,7 @@ export function useTicketBrowser(context: Context) {
 	const changeFilter = (next: TicketFilter): void => {
 		if (filter() === next) return
 		setFilter(next)
-		const nextRows = buildTreeRows(filterTickets(tickets(), next), expanded())
+		const nextRows = ticketRows(tickets(), next, query(), expanded())
 		const nextSelected = reconcileSelection(nextRows, selected())
 		if (nextSelected === selected() && detail() !== null) return
 		setSelected(nextSelected)
@@ -142,12 +144,25 @@ export function useTicketBrowser(context: Context) {
 		else refreshDetail(nextSelected)
 	}
 
+	const changeQuery = (next: string): void => {
+		setQuery(next)
+		const nextSelected = reconcileSelection(ticketRows(tickets(), filter(), next, expanded()), selected())
+		if (nextSelected === selected()) return
+		setSelected(nextSelected)
+		if (nextSelected === null) clearDetail()
+		else refreshDetail(nextSelected)
+	}
+
 	const toggle = (id: string): void => {
+		if (query().trim()) return
 		const next = new Set(expanded())
 		if (next.has(id)) next.delete(id)
 		else next.add(id)
 		setExpanded(next)
-		if (selected() !== null && !buildTreeRows(visibleTickets(), next).some(row => row.ticket.id === selected())) {
+		if (
+			selected() !== null &&
+			!ticketRows(tickets(), filter(), query(), next).some(row => row.ticket.id === selected())
+		) {
 			select(id)
 		}
 	}
@@ -185,6 +200,7 @@ export function useTicketBrowser(context: Context) {
 	return {
 		tickets,
 		filter,
+		query,
 		selected,
 		loading,
 		error,
@@ -195,6 +211,7 @@ export function useTicketBrowser(context: Context) {
 		counts,
 		select,
 		changeFilter,
+		changeQuery,
 		toggle,
 		move,
 		expand,
