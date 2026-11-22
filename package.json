@@ -1,6 +1,6 @@
 {
 	"name": "@ceski23/opencode-tickets",
-	"version": "1.0.2",
+	"version": "1.1.0",
 	"description": "Local-first Markdown tickets for OpenCode, with agent tools and a terminal ticket tree.",
 	"type": "module",
 	"packageManager": "bun@1.4.4",

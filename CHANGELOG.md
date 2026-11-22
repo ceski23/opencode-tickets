@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.0](https://github.com/ceski23/opencode-tickets/compare/v1.0.2...v1.1.0) (2026-11-22)
+
+### Features
+
+* add fuzzy search to tickets dialog ([a1d2e2d](https://github.com/ceski23/opencode-tickets/commit/a1d2e2dd34112a5b39ecd150752f4dc977278637))
+
 ## [1.0.2](https://github.com/ceski23/opencode-tickets/compare/v1.0.1...v1.0.2) (2026-11-16)
 
 ### Bug Fixes
