@@ -1,7 +1,7 @@
 import type { Context } from '@opencode/plugin/tui/context'
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { statusMarker, TREE_SYMBOLS, ticketCounts, type TicketListItem } from '../tui-model'
-import { SIDEBAR_REFRESH_MS } from './constants'
+import { TICKETS_REFRESH_MS } from './constants'
 import { onPrimaryMouseDown, onPrimaryMouseUp } from './events'
 import { ticketsRpc } from './rpc'
 import { statusColor, type TuiTheme } from './theme'
@@ -49,7 +49,7 @@ export function TicketsSidebar(props: { context: Context; onOpen: () => void }) 
 		void load()
 		const timer = setInterval(() => {
 			if (open()) void load()
-		}, SIDEBAR_REFRESH_MS)
+		}, TICKETS_REFRESH_MS)
 		onCleanup(() => clearInterval(timer))
 	})
 

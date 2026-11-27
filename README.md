@@ -195,7 +195,8 @@ expanded, and reloads when reopened. Click a row or `and N more` to open the dia
 section's collapsed state is persisted.
 
 All mutations happen through the agent tools or by editing ticket files. The dialog is
-read-only.
+read-only and refreshes every five seconds while open, so changes made by the agent show
+up without reopening it.
 
 ## RPC
 

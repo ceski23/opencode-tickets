@@ -18,6 +18,7 @@ import {
 	type TicketFilter,
 	type TicketListItem,
 } from '../tui-model'
+import { TICKETS_REFRESH_MS } from './constants'
 import { ticketsRpc } from './rpc'
 
 /**
@@ -41,6 +42,7 @@ export function useTicketBrowser(context: Context) {
 	let hydrated = false
 	let detailRequest = 0
 	let listRequest = 0
+	let listSignature: string | null = null
 	let disposed = false
 
 	onCleanup(() => {
@@ -57,9 +59,9 @@ export function useTicketBrowser(context: Context) {
 		setDetailLoading(false)
 	}
 
-	const loadDetail = async (id: string): Promise<void> => {
+	const loadDetail = async (id: string, silent = false): Promise<void> => {
 		const request = ++detailRequest
-		setDetailLoading(true)
+		if (!silent) setDetailLoading(true)
 		setDetailError(null)
 		try {
 			const result = await rpc.get(id)
@@ -67,6 +69,9 @@ export function useTicketBrowser(context: Context) {
 			setDetail(result)
 		} catch (cause) {
 			if (disposed || request !== detailRequest) return
+			// A background refresh keeps the last good detail instead of
+			// replacing it with an error the user did not ask for.
+			if (silent) return
 			setDetail(null)
 			setDetailError(formatRpcError(cause))
 		} finally {
@@ -94,15 +99,23 @@ export function useTicketBrowser(context: Context) {
 		void loadDetail(id)
 	}
 
-	const loadList = async (): Promise<boolean> => {
+	const loadList = async (silent = false): Promise<boolean> => {
 		const request = ++listRequest
-		setLoading(true)
-		setError(null)
+		if (!silent) {
+			setLoading(true)
+			setError(null)
+		}
 		try {
 			const result = await rpc.list(true)
 			if (disposed || request !== listRequest) return false
 
 			const nextTickets = result.tickets
+			const signature = JSON.stringify(nextTickets)
+			// Every ticket update rewrites at least one file, so an unchanged
+			// snapshot means the open dialog already shows the current state.
+			if (silent && signature === listSignature) return true
+			listSignature = signature
+
 			const parents = new Set(parentIdsWithChildren(nextTickets))
 			const nextExpanded = new Set([...expanded()].filter(id => parents.has(id)))
 			if (!hydrated) {
@@ -110,19 +123,26 @@ export function useTicketBrowser(context: Context) {
 				hydrated = true
 			}
 
+			const previousSelected = selected()
 			setTickets(nextTickets)
 			setExpanded(nextExpanded)
 
 			const nextSelected = reconcileSelection(
 				ticketRows(nextTickets, filter(), query(), nextExpanded),
-				selected(),
+				previousSelected,
 			)
 			setSelected(nextSelected)
 			if (nextSelected === null) clearDetail()
+			// Keep the current detail visible while a poll reloads it, but show
+			// the normal loading state when the selection itself changed.
+			else if (silent && nextSelected === previousSelected && detail() !== null)
+				void loadDetail(nextSelected, true)
 			else refreshDetail(nextSelected)
 			return true
 		} catch (cause) {
 			if (disposed || request !== listRequest) return false
+			// A transient poll failure must not blank an already loaded dialog.
+			if (silent) return false
 			setTickets([])
 			setError(formatRpcError(cause))
 			setSelected(null)
@@ -195,6 +215,12 @@ export function useTicketBrowser(context: Context) {
 	// leaves the dialog showing its first (empty) snapshot forever.
 	onMount(() => {
 		void loadList()
+		// The dialog is open while the agent keeps writing tickets, so poll as
+		// long as it is mounted and stop when it is disposed.
+		const timer = setInterval(() => {
+			void loadList(true)
+		}, TICKETS_REFRESH_MS)
+		onCleanup(() => clearInterval(timer))
 	})
 
 	return {
