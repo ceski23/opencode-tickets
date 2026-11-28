@@ -3,10 +3,12 @@ import type { Context } from '@opencode/plugin/promise/plugin'
 import type { Info as ToolInfo } from '@opencode/plugin/promise/tool'
 import { z } from 'zod'
 import { TicketError, errorMessage } from './core/errors'
+import { parseTicketsOptions, resolveTicketsDirectory } from './core/paths'
 import { buildReminder } from './core/reminder'
 import { TICKET_STATUSES, type DerivedTicket } from './core/schema'
 import { MAX_SEARCH_LIMIT, type TicketSearchFilters } from './core/search'
 import { TicketService, type UpdateTicketInput } from './core/service'
+import { TicketStorage } from './core/storage'
 import { TicketsRpc } from './rpc'
 
 const statusSchema = z.enum(TICKET_STATUSES)
@@ -260,7 +262,14 @@ function asRpcMessage(error: unknown): string {
 }
 
 export async function setupPlugin(ctx: Context): Promise<() => Promise<void>> {
-	const service = new TicketService(ctx.location.directory)
+	const options = parseTicketsOptions(ctx.options)
+	const directory = resolveTicketsDirectory({
+		storage: options.storage,
+		locationDirectory: ctx.location.directory,
+		projectId: ctx.location.project?.id,
+	})
+	const storage = new TicketStorage(ctx.location.directory, directory)
+	const service = new TicketService(ctx.location.directory, storage)
 	const registrations: Array<{ dispose: () => Promise<void> }> = []
 
 	try {
@@ -298,6 +307,7 @@ export async function setupPlugin(ctx: Context): Promise<() => Promise<void>> {
 					try {
 						const tickets = await service.list()
 						return {
+							directory: storage.directory,
 							tickets: tickets.map(ticket => ({
 								id: ticket.id,
 								title: ticket.title,

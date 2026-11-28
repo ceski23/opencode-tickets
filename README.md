@@ -1,8 +1,9 @@
 # OpenCode Tickets
 
-Local-first ticket tracking for OpenCode V2. Tickets are Markdown files in your project.
-Agents work them through five `ticket.*` tools, and `/tickets` opens a read-only TUI
-browser. There is no database, daemon, external tracker, or standalone CLI.
+Local-first ticket tracking for OpenCode V2. Tickets are Markdown files in your project
+or in a global per-project store. Agents work them through five `ticket.*` tools, and
+`/tickets` opens a read-only TUI browser. There is no database, daemon, external tracker,
+or standalone CLI.
 
 ## Install
 
@@ -14,6 +15,24 @@ OpenCode V2 is required. Add the plugin to `opencode.json` or `opencode.jsonc`:
 	"plugins": ["@ceski23/opencode-tickets"],
 }
 ```
+
+To keep tickets outside the project, enable global storage. In the global
+`~/.config/opencode/opencode.json(c)`, replace the plugin's string entry with the object
+form below, keeping any version pin in `package`:
+
+```jsonc
+{
+	"$schema": "https://opencode.ai/config.json",
+	"plugins": [
+		{
+			"package": "@ceski23/opencode-tickets",
+			"options": { "storage": "global" },
+		},
+	],
+}
+```
+
+To use a checkout before release, put its absolute path in `package`.
 
 For a source checkout, install its dependencies and point `plugins` at the checkout:
 
@@ -33,8 +52,14 @@ configuration change; use `/reload` to force a full reload.
 
 ## Tickets
 
-Tickets live at `<project>/.opencode/tickets/<id>.md`. The directory is created on first
-creation; if it is absent, the backlog is empty.
+Tickets live at `<project>/.opencode/tickets/<id>.md` by default (`"storage": "project"`).
+The directory is created on first creation; if it is absent, the backlog is empty.
+
+With `"storage": "global"`, tickets live under the OpenCode configuration directory:
+
+```text
+<config>/opencode/tickets/project-<projectID>/TK-1.md
+```
 
 ```markdown
 ---
@@ -62,10 +87,10 @@ Frontmatter fields are `id`, `title`, `status`, `labels`, `parent`, and `blocked
 Everything after the frontmatter is arbitrary Markdown. IDs are generated as `TK-1`,
 `TK-2`, and so on; a ticket's filename must be its ID plus `.md`.
 
-Tickets are plain files, so you can commit them or ignore `.opencode/tickets/`. Manual
-edits are allowed. The whole directory is validated whenever tickets are read or written,
-so malformed YAML, unknown fields, duplicate IDs, missing references, and cycles appear
-as actionable errors instead of being skipped.
+Tickets are plain files, so you can commit project-local tickets or ignore
+`.opencode/tickets/`. Manual edits are allowed. The whole directory is validated
+whenever tickets are read or written, so malformed YAML, unknown fields, duplicate IDs,
+missing references, and cycles appear as actionable errors instead of being skipped.
 
 ## Statuses and relationships
 
@@ -202,9 +227,9 @@ up without reopening it.
 
 The `@ceski23/opencode-tickets/rpc` export provides the read-only contract used by the
 TUI:
-`listTickets` for summaries (optionally including bodies with `includeBodies: true`) and
-`getTicket` for one ticket's details. Other plugins can use it to read the same
-server-side state. These methods are not agent tools.
+`listTickets` for summaries (optionally including bodies with `includeBodies: true`) plus
+the resolved ticket `directory`, and `getTicket` for one ticket's details. Other plugins
+can use it to read the same server-side state. These methods are not agent tools.
 
 ## Development
 

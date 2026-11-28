@@ -56,6 +56,7 @@ export const TicketsRpc = Rpc.define({
 				type: 'object',
 				additionalProperties: false,
 				properties: {
+					directory: { type: 'string' },
 					tickets: {
 						type: 'array',
 						items: {
@@ -64,7 +65,7 @@ export const TicketsRpc = Rpc.define({
 						},
 					},
 				},
-				required: ['tickets'],
+				required: ['directory', 'tickets'],
 			},
 			errors: { invalid_storage: errorSchema },
 		},
@@ -93,7 +94,10 @@ export const TicketsRpc = Rpc.define({
 	events: {},
 })
 
-export type ListTicketsResult = { tickets: (TicketSummary & { body?: string })[] }
+export type ListTicketsResult = {
+	directory: string
+	tickets: (TicketSummary & { body?: string })[]
+}
 
 export type GetTicketResult = TicketDetail
 

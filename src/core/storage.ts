@@ -5,7 +5,9 @@ import { TicketError } from './errors'
 import { assertTicketId, compareTicketIds, parseTicketFile, serializeTicket, type Ticket } from './schema'
 
 /**
- * Markdown ticket storage under `<project>/.opencode/tickets/`.
+ * Markdown ticket storage. The directory defaults to
+ * `<project>/.opencode/tickets/` but the plugin can pass a resolved directory
+ * for global storage.
  *
  * Every read parses the complete directory and reports every invalid file at
  * once. Writes use a temporary file plus rename so a crash cannot leave a
@@ -15,9 +17,9 @@ export class TicketStorage {
 	readonly root: string
 	readonly directory: string
 
-	constructor(root: string) {
+	constructor(root: string, directory = join(root, '.opencode', 'tickets')) {
 		this.root = root
-		this.directory = join(root, '.opencode', 'tickets')
+		this.directory = directory
 	}
 
 	pathFor(id: string): string {

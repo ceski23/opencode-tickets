@@ -39,7 +39,7 @@ export default Plugin.define({
 				{
 					id: 'tickets.open',
 					title: 'Tickets',
-					description: "Browse the project's local ticket tree.",
+					description: 'Browse the ticket tree.',
 					group: 'Plugins',
 					palette: true,
 					slash: { name: 'tickets' },
@@ -140,12 +140,16 @@ export function TicketsDialog(props: { context: Context }) {
 				title: 'Tickets: open file',
 				description: "Open the selected ticket's Markdown file in the default editor.",
 				bind: 'o',
-				enabled: () => !searching() && browser.selected() !== null && browser.error() === null,
+				enabled: () =>
+					!searching() &&
+					browser.selected() !== null &&
+					browser.error() === null &&
+					browser.directory() !== null,
 				run: () => {
 					const id = browser.selected()
-					if (id === null) return
-					const location = context.location ?? context.data.location.default()
-					const file = join(location.directory, '.opencode', 'tickets', `${id}.md`)
+					const directory = browser.directory()
+					if (id === null || directory === null) return
+					const file = join(directory, `${id}.md`)
 					void openFile(file).catch(() => {})
 				},
 			},
@@ -193,7 +197,9 @@ export function TicketsDialog(props: { context: Context }) {
 					<text fg={theme.text.feedback.error.base}>Could not load tickets</text>
 					<text fg={theme.text.feedback.error.muted}>{browser.error()}</text>
 					<text fg={theme.text.muted}>
-						Check the ticket files under .opencode/tickets, then press r to retry.
+						{browser.directory() === null
+							? 'Check the configured ticket directory, then press r to retry.'
+							: `Check the ticket files in ${browser.directory()}, then press r to retry.`}
 					</text>
 				</box>
 			</Show>

@@ -59,6 +59,19 @@ describe('TicketStorage', () => {
 		})
 	})
 
+	it('uses an explicit ticket directory when provided', async () => {
+		await withTempProject(async root => {
+			const directory = join(root, 'global', 'project-prj_1')
+			const storage = new TicketStorage(root, directory)
+			const value = ticket({ id: 'TK-1', title: 'Global' })
+
+			expect(storage.directory).toBe(directory)
+			await storage.write(value)
+			expect(await readdir(directory)).toEqual(['TK-1.md'])
+			expect(await storage.loadAll()).toEqual([value])
+		})
+	})
+
 	it('reports a missing ticket on remove', async () => {
 		await withTempProject(async root => {
 			const storage = new TicketStorage(root)

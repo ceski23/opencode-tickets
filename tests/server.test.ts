@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import { describe, expect, it, vi } from 'vitest'
 import { setupPlugin } from '../src/index'
 import { withTempProject } from './helpers'
 
@@ -78,6 +80,7 @@ describe('server plugin registration', () => {
 
 			const rpcContext = { error: (type: string, message: string, data: unknown) => ({ type, message, data }) }
 			const listed = await handlers!.listTickets!(undefined, rpcContext)
+			expect(listed.directory).toBe(join(root, '.opencode', 'tickets'))
 			expect(listed.tickets.map((entry: { id: string }) => entry.id)).toContain(created.id)
 			expect(listed.tickets.find((entry: { id: string }) => entry.id === created.id)).not.toHaveProperty('body')
 			const withBodies = await handlers!.listTickets!({ includeBodies: true }, rpcContext)
@@ -139,6 +142,91 @@ describe('server plugin registration', () => {
 			const event = { system: [] as Array<{ type: string; text: string }> }
 			await expect(contextHook!(event)).resolves.toBeUndefined()
 			expect(event.system).toEqual([])
+		})
+	})
+
+	it('stores tickets under the global config directory when configured', async () => {
+		await withTempProject(async root => {
+			const configHome = join(root, 'xdg')
+			vi.stubEnv('XDG_CONFIG_HOME', configHome)
+			try {
+				const tools: Array<{
+					name: string
+					execute: (input: unknown, context: unknown) => Promise<{ content: string }>
+				}> = []
+				let handlers: Record<string, (...args: any[]) => Promise<any>> | undefined
+				let namespace: string | undefined
+
+				const context = {
+					location: {
+						directory: root,
+						project: { id: 'prj_1', directory: root, canonical: root },
+					},
+					options: { storage: 'global' },
+					tool: {
+						transform: async (
+							transform: (editor: {
+								namespace: (value: { name: string }) => void
+								add: (tool: unknown) => void
+							}) => void,
+						) => {
+							transform({
+								namespace: value => {
+									namespace = value.name
+								},
+								add: tool => {
+									const entry = tool as { name: string }
+									tools.push({
+										...entry,
+										name: namespace === undefined ? entry.name : `${namespace}_${entry.name}`,
+									} as (typeof tools)[number])
+								},
+							})
+							return { dispose: async () => undefined }
+						},
+					},
+					session: {
+						hook: async () => ({ dispose: async () => undefined }),
+					},
+					rpc: {
+						register: async (_definition: unknown, value: typeof handlers) => {
+							handlers = value
+							return { dispose: async () => undefined }
+						},
+					},
+				}
+
+				const cleanup = await setupPlugin(context as never)
+				try {
+					const create = tools.find(tool => tool.name === 'ticket_create')!
+					await create.execute({ title: 'Global ticket' }, {})
+
+					const directory = join(configHome, 'opencode', 'tickets', 'project-prj_1')
+					expect(await readFile(join(directory, 'TK-1.md'), 'utf8')).toContain('id: TK-1')
+
+					const rpcContext = {
+						error: (type: string, message: string, data: unknown) => ({ type, message, data }),
+					}
+					const listed = await handlers!.listTickets!(undefined, rpcContext)
+					expect(listed.directory).toBe(directory)
+					expect(listed.tickets.map((entry: { id: string }) => entry.id)).toEqual(['TK-1'])
+				} finally {
+					await cleanup()
+				}
+			} finally {
+				vi.unstubAllEnvs()
+			}
+		})
+	})
+
+	it('rejects invalid plugin options before registering anything', async () => {
+		await withTempProject(async root => {
+			await expect(
+				setupPlugin({
+					location: { directory: root },
+					options: { storage: 'shared' },
+				} as never),
+			).rejects.toThrow(/Invalid options/)
 		})
 	})
 })

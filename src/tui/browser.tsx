@@ -28,6 +28,7 @@ import { ticketsRpc } from './rpc'
  */
 export function useTicketBrowser(context: Context) {
 	const rpc = ticketsRpc(context)
+	const [directory, setDirectory] = createSignal<string | null>(null)
 	const [tickets, setTickets] = createSignal<TicketListItem[]>([])
 	const [filter, setFilter] = createSignal<TicketFilter>('all')
 	const [query, setQuery] = createSignal('')
@@ -110,7 +111,11 @@ export function useTicketBrowser(context: Context) {
 			if (disposed || request !== listRequest) return false
 
 			const nextTickets = result.tickets
-			const signature = JSON.stringify(nextTickets)
+			const nextDirectory = result.directory ?? null
+			// Apply the directory before the unchanged-snapshot check: a
+			// configuration reload can keep the same tickets while moving them.
+			setDirectory(nextDirectory)
+			const signature = JSON.stringify([nextDirectory, nextTickets])
 			// Every ticket update rewrites at least one file, so an unchanged
 			// snapshot means the open dialog already shows the current state.
 			if (silent && signature === listSignature) return true
@@ -224,6 +229,7 @@ export function useTicketBrowser(context: Context) {
 	})
 
 	return {
+		directory,
 		tickets,
 		filter,
 		query,
