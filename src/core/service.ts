@@ -68,6 +68,8 @@ const CREATE_KEYS = new Set<keyof CreateTicketInput>(['title', 'body', 'labels',
  */
 export class TicketService {
 	readonly storage: TicketStorage
+	/** Serializes mutations so parallel tool calls cannot allocate the same ID. */
+	private mutations: Promise<unknown> = Promise.resolve()
 
 	constructor(root: string, storage?: TicketStorage) {
 		this.storage = storage ?? new TicketStorage(root)
@@ -106,6 +108,10 @@ export class TicketService {
 	}
 
 	async create(input: CreateTicketInput): Promise<DerivedTicket> {
+		return this.enqueue(() => this.createLocked(input))
+	}
+
+	private async createLocked(input: CreateTicketInput): Promise<DerivedTicket> {
 		this.validateCreateShape(input)
 		const title = normalizeTitle(input.title)
 		const body = input.body === undefined ? '' : normalizeBody(input.body)
@@ -132,6 +138,10 @@ export class TicketService {
 	}
 
 	async update(id: string, changes: UpdateTicketInput): Promise<DerivedTicket> {
+		return this.enqueue(() => this.updateLocked(id, changes))
+	}
+
+	private async updateLocked(id: string, changes: UpdateTicketInput): Promise<DerivedTicket> {
 		const ticketId = assertTicketId(id)
 		this.validateUpdateShape(changes)
 
@@ -196,6 +206,10 @@ export class TicketService {
 	}
 
 	async delete(id: string): Promise<{ id: string; deleted: true }> {
+		return this.enqueue(() => this.deleteLocked(id))
+	}
+
+	private async deleteLocked(id: string): Promise<{ id: string; deleted: true }> {
 		const ticketId = assertTicketId(id)
 		const tickets = await this.loadDerived()
 		const ticket = tickets.find(candidate => candidate.id === ticketId)
@@ -235,6 +249,20 @@ export class TicketService {
 		const tickets = await this.storage.loadAll()
 		validateGraph(tickets)
 		return deriveAll(tickets)
+	}
+
+	/**
+	 * Runs a read-validate-write mutation after every earlier mutation. Without
+	 * this, parallel creates load the same collection and allocate the same ID.
+	 * A failed mutation does not block the queue for the next caller.
+	 */
+	private enqueue<T>(operation: () => Promise<T>): Promise<T> {
+		const result = this.mutations.then(operation, operation)
+		this.mutations = result.then(
+			() => undefined,
+			() => undefined,
+		)
+		return result
 	}
 
 	private validateCreateShape(input: CreateTicketInput): void {

@@ -53,6 +53,18 @@ describe('TicketService create', () => {
 		})
 	})
 
+	it('generates distinct IDs and keeps every ticket when creates run in parallel', async () => {
+		await withTempProject(async root => {
+			const service = new TicketService(root)
+			const titles = Array.from({ length: 6 }, (_, index) => `Parallel ${index}`)
+			const created = await Promise.all(titles.map(title => service.create({ title })))
+
+			expect(new Set(created.map(ticket => ticket.id)).size).toBe(titles.length)
+			const reloaded = await service.list()
+			expect(reloaded.map(ticket => ticket.title).sort()).toEqual([...titles].sort())
+		})
+	})
+
 	it('stores labels, body, parent, and blockers', async () => {
 		await withTempProject(async root => {
 			const service = new TicketService(root)
